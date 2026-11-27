@@ -4,6 +4,8 @@
 
 import { GROUND_Y, FARMER } from './config.js';
 
+export const ROLL_RANGE = 760; // rolling hazards start rolling when Pepper is this close
+
 const SPECS = {
   fence: { w: 40, h: 74, kind: 'low' },
   hay: { w: 100, h: 60, kind: 'low' },
@@ -18,6 +20,10 @@ const SPECS = {
   mud: { w: 190, h: 14, kind: 'surface' },
   gravy: { w: 220, h: 12, kind: 'surface' },
 };
+
+export function hazardSpec(type) {
+  return SPECS[type];
+}
 
 export function hazardKinds() {
   return Object.keys(SPECS);
@@ -48,7 +54,7 @@ export function ovenPhase(h) {
 
 export function updateHazard(h, dt, turkeyX, events) {
   h.t += dt;
-  if (h.vx && h.x - turkeyX < 760) {
+  if (h.vx && h.x - turkeyX < ROLL_RANGE) {
     h.x += h.vx * dt;
     h.spin += h.vx * dt / 30;
   }
@@ -103,9 +109,10 @@ export function hazardHitboxes(h) {
 }
 
 // A carving knife the farmer throws from behind: low ones are jumped, high ones are ducked.
-// It always reaches Pepper about the same time after the throw, so the warning is a fixed rhythm.
+// It reaches Pepper knifeFlight seconds after the throw at any distance (the farmer only throws
+// from at least FARMER.minThrowGap back), so the warning is a fixed rhythm, never a snap.
 export function makeThrownKnife(x, lane, turkeyX, turkeySpeed) {
-  const vx = turkeySpeed + Math.max(FARMER.knifeSpeed - 330, (turkeyX - x) / FARMER.knifeFlight);
+  const vx = turkeySpeed + Math.max(120, turkeyX - x) / FARMER.knifeFlight;
   return { x, lane, y: lane === 'high' ? GROUND_Y - 62 : GROUND_Y - 20, vx, spin: 0, hit: false, passed: false };
 }
 

@@ -27,7 +27,11 @@ export function createInput(canvas) {
     held.add(e.code);
   });
   window.addEventListener('keyup', (e) => held.delete(e.code));
+  // Losing focus drops every held key (no stuck sprint), and the click that brings the window
+  // back is only a focus click, never a pie drop or a button press.
+  let focusedAt = -1e9;
   window.addEventListener('blur', () => held.clear());
+  window.addEventListener('focus', () => { focusedAt = performance.now(); });
 
   const toView = (e) => {
     const r = canvas.getBoundingClientRect();
@@ -40,8 +44,9 @@ export function createInput(canvas) {
   canvas.addEventListener('mousemove', toView);
   canvas.addEventListener('mousedown', (e) => {
     toView(e);
+    if (e.button !== 0) return;          // right and middle clicks do nothing
     mouse.down = true;
-    mouse.clicked = true;
+    if (performance.now() - focusedAt > 250) mouse.clicked = true;
   });
   window.addEventListener('mouseup', () => { mouse.down = false; });
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());

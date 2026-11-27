@@ -34,7 +34,7 @@ export const FARMER = {
   hitLunge: 100,        // how much closer he gets when Pepper stumbles
   pieStop: 1.7,         // seconds he stops to eat a dropped pie
   windup: 0.75,         // seconds of warning before a thrown knife
-  knifeSpeed: 760,      // slowest a knife flies
+  minThrowGap: 240,     // he never throws from closer than this, so a knife is never a snap
   knifeFlight: 0.85,    // seconds from throw to reaching Pepper
   searchWalk: 150,
   searchHurry: 290,

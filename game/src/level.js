@@ -2,9 +2,19 @@
 // corn trails to collect (often arcing over a hazard to reward a jump), pies to drop as decoys,
 // hiding spots during a search and the door that ends it, and the woods gate at the very end.
 
-import { GROUND_Y, PX_PER_M } from './config.js';
+import { GROUND_Y, PX_PER_M, TURKEY } from './config.js';
 import { STAGES, COURSE_END_M, stageAt } from './stages.js';
-import { makeHazard } from './hazards.js';
+import { makeHazard, hazardSpec, ROLL_RANGE } from './hazards.js';
+
+const SEARCH_RUNUP = 900;  // px of open floor before a search stage
+// Static hazards from the stage's own mix that may trail another one closely.
+const FOLLOW_KINDS = ['hay', 'fence', 'crate', 'pitchfork', 'pot'];
+
+// How far a rolling hazard moves toward Pepper between starting to roll and reaching her.
+function rollTravel(type) {
+  const roll = Math.abs(hazardSpec(type).roll ?? 0);
+  return roll ? Math.ceil(ROLL_RANGE * roll / (TURKEY.baseSpeed + roll)) : 0;
+}
 
 export function createLevel(rng) {
   return { rng, nextX: 900, hazards: [], corn: [], pies: [], feathers: [], hides: [], doors: [], spawnedStages: new Set(), gateX: COURSE_END_M * PX_PER_M };
@@ -63,15 +73,24 @@ export function extendLevel(level, untilX) {
     }
     const stageStartX = stage.from * PX_PER_M;
     if (level.nextX < stageStartX + 300 && stage.from > 0) level.nextX = stageStartX + 300;
+    // Leave the run-up to a search clear, so nothing (flame or follow-up) spills into the dark.
+    const after = STAGES[STAGES.indexOf(stage) + 1];
+    if (after?.mode === 'search' && level.nextX > after.from * PX_PER_M - SEARCH_RUNUP) {
+      level.nextX = after.from * PX_PER_M;
+      continue;
+    }
 
     const progress = (meters - stage.from) / (stage.to - stage.from);
     const tighten = 1 - 0.22 * progress;
     const type = weightedPick(rng, stage.hazards);
-    const hz = makeHazard(type, level.nextX, rng);
+    // A rolling hazard travels toward Pepper before she meets it: set it back by that much so
+    // the spot where it arrives keeps its spacing from the hazard before.
+    const rollShift = rollTravel(type);
+    const hz = makeHazard(type, level.nextX + rollShift, rng);
     level.hazards.push(hz);
 
     // Rewards that pull the player into a choice: corn over a hazard asks for a clean jump.
-    if (hz.kind === 'low' && rng.chance(0.55)) addCornArc(level, hz.x - 70, hz.w + 140, 120);
+    if (hz.kind === 'low' && !rollShift && rng.chance(0.55)) addCornArc(level, hz.x - 70, hz.w + 140, 120);
     else if (hz.kind === 'high' && rng.chance(0.5)) addCornLine(level, hz.x - 40, 3, GROUND_Y - 22);
     else if (rng.chance(0.4)) addCornLine(level, hz.x + hz.w + 80, 4, GROUND_Y - 34);
 
@@ -79,14 +98,15 @@ export function extendLevel(level, untilX) {
     let gap = rng.range(stage.spacing[0], stage.spacing[1]) * tighten;
     if (type === 'oven') gap += hz.flameLen;
     if (type === 'knifeRack') gap += 60;
-    if (progress > 0.35 && rng.chance(0.18) && hz.kind === 'low') {
-      const follow = makeHazard(rng.pick(['hay', 'fence', 'crate'].filter((t) => stage.hazards[t]).concat(['pitchfork'])), hz.x + hz.w + 250, rng);
+    const followKinds = FOLLOW_KINDS.filter((t) => stage.hazards[t]);
+    if (progress > 0.35 && rng.chance(0.18) && hz.kind === 'low' && !rollShift && followKinds.length) {
+      const follow = makeHazard(rng.pick(followKinds), hz.x + hz.w + 250, rng);
       level.hazards.push(follow);
-      gap += 260;
+      gap += 250 + follow.w;
     }
     if (rng.chance(0.09)) level.pies.push({ x: level.nextX + gap * 0.5, y: GROUND_Y - 110, taken: false });
     if (rng.chance(0.035)) level.feathers.push({ x: level.nextX + gap * 0.5, y: GROUND_Y - 150, taken: false });
-    level.nextX += gap + hz.w;
+    level.nextX += rollShift + gap + hz.w;
   }
 }
 

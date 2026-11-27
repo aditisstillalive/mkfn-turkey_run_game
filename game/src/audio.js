@@ -12,11 +12,20 @@ let nextTime = 0;
 let musicStyle = 'chase';
 let tempo = 132;
 
+let paused = false;
+
+// Safe to call from any user gesture: creates the context once, resumes it if the browser
+// suspended it, and quietly does nothing where Web Audio is missing or blocked.
 export function unlockAudio() {
-  if (ac) { if (ac.state === 'suspended') ac.resume(); return; }
-  const Ctx = window.AudioContext || window.webkitAudioContext;
-  if (!Ctx) return;
-  ac = new Ctx();
+  try {
+    if (ac) { if (ac.state === 'suspended') ac.resume().catch(() => {}); return; }
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    ac = new Ctx();
+  } catch {
+    ac = null;
+    return;
+  }
   master = ac.createGain();
   master.gain.value = muted ? 0 : 0.6;
   master.connect(ac.destination);
@@ -32,6 +41,9 @@ export function toggleMute() {
 }
 
 export function isMuted() { return muted; }
+
+// While paused the music stops being scheduled (and resumes in time when play does).
+export function setAudioPaused(on) { paused = on; }
 
 function tone(freq, dur, { type = 'square', vol = 0.2, slide = 0, at = 0, bus = master, attack = 0.005 } = {}) {
   if (!ac) return;
@@ -104,7 +116,8 @@ const SFX = {
 
 export function playSfx(name) {
   const fn = SFX[name];
-  if (fn && ac && !muted) fn();
+  if (!fn || !ac || muted) return;
+  try { fn(); } catch { /* a sound is never worth a crash */ }
 }
 
 // The music: a little banjo-ish pluck over a bass and a brushed snare, scheduled ahead of time.
@@ -114,6 +127,13 @@ const BASS = [0, 0, 7, 7, 5, 5, 7, 7];
 
 function schedule() {
   if (!ac) return;
+  try { scheduleBeats(); } catch { /* keep the game running without music */ }
+}
+
+function scheduleBeats() {
+  // A throttled or suspended tab lets the clock run ahead: skip the missed beats, never burst them.
+  if (nextTime < ac.currentTime) nextTime = ac.currentTime + 0.05;
+  if (muted || paused || ac.state !== 'running') return;
   while (nextTime < ac.currentTime + 0.2) {
     const spb = 60 / tempo / 2;
     const at = nextTime - ac.currentTime;

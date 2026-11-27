@@ -68,7 +68,9 @@ function emit(run, name, data = {}) {
 function enterStage(run, next) {
   const prev = run.stage;
   run.stage = next;
-  if (prev.mode === 'search') {
+  // Out of feathers, the farmer's lunge is final: no new stage may call him off.
+  const doomed = run.turkey.lives <= 0;
+  if (prev.mode === 'search' && !doomed) {
     if (!run.spotted) {
       run.stats.slips += 1;
       addBonus(run, SCORE.slipAway, 'Slipped away!', '#9fe27a', run.turkey.x, GROUND_Y - 150);
@@ -76,8 +78,8 @@ function enterStage(run, next) {
     }
     endSearch(run.farmer, run.turkey, run.spotted);
   }
-  run.spotted = false;
-  if (next.mode === 'search') {
+  run.spotted = doomed;
+  if (next.mode === 'search' && !doomed) {
     startSearch(run.farmer, run.turkey);
     emit(run, 'lightsOut');
   }
@@ -144,7 +146,7 @@ function checkHazards(run, dt, box) {
         h.clearance = Math.min(h.clearance, Math.max(0, clear));
       }
     }
-    if (!h.passed && h.x + h.w < box.x) {
+    if (!h.passed && h.x + h.w + (h.flameLen ?? 0) < box.x) {
       h.passed = true;
       if (!h.hit && h.clearance < 16) {
         run.stats.closeShaves += 1;
@@ -205,7 +207,7 @@ function collectPickups(run) {
     }
   }
   for (const f of run.level.feathers) {
-    if (!f.taken && Math.abs(f.x - cx) < 48 && Math.abs(f.y - cy) < 80) {
+    if (!f.taken && t.lives > 0 && Math.abs(f.x - cx) < 48 && Math.abs(f.y - cy) < 80) {
       f.taken = true;
       t.lives = Math.min(5, t.lives + 1);
       floatText(run.fx, 'Lucky feather! +1 life', f.x, f.y - 30, '#9fe27a', 22);
@@ -216,7 +218,7 @@ function collectPickups(run) {
 
 function updateSearch(run, dt) {
   const t = run.turkey;
-  if (runMode(run) !== 'search') return;
+  if (runMode(run) !== 'search' || t.lives <= 0) return;
   const inBeam = pointInBeam(run.farmer, t.x, t.y - 36) || pointInBeam(run.farmer, t.x, t.y - 6);
   if (inBeam && !t.hidden) {
     run.spotted = true;
@@ -269,7 +271,8 @@ function updatePies(run, dt) {
     p.x -= 60 * dt;
     if (p.y >= GROUND_Y - 6) { p.y = GROUND_Y - 6; p.landed = true; }
   }
-  run.droppedPies = run.droppedPies.filter((p) => !p.eaten || run.farmer.mode === 'eating');
+  // eaten pies go once he has finished; uneaten ones once they are far behind the camera
+  run.droppedPies = run.droppedPies.filter((p) => (!p.eaten || run.farmer.mode === 'eating') && p.x > run.camX - 600);
 }
 
 function updateCamera(run, dt) {
@@ -328,7 +331,7 @@ export function updateRun(run, dt, controls) {
   }
   updateSearch(run, dt);
 
-  if (t.x >= run.level.gateX + 60) finish(run, 'escaped');
+  if (t.lives > 0 && t.x >= run.level.gateX + 60) finish(run, 'escaped');
   updateCamera(run, dt);
 }
 

@@ -121,7 +121,7 @@ export function updateFarmer(f, dt, turkey, stage, pies, rng, groundClear = true
 
   if (f.mode === 'chase') {
     f.knifeTimer -= dt;
-    if (f.knifeTimer <= 0 && gap > 150) {
+    if (f.knifeTimer <= 0 && gap > FARMER.minThrowGap + 40) {
       f.mode = 'windup';
       f.t = 0;
       f.lane = groundClear && rng.next() < 0.5 ? 'high' : 'low';
@@ -132,7 +132,7 @@ export function updateFarmer(f, dt, turkey, stage, pies, rng, groundClear = true
     f.mode = 'chase';
     f.t = 0;
     f.knifeTimer = 1.2;
-  } else if (f.mode === 'windup' && f.t > FARMER.windup && groundClear) {
+  } else if (f.mode === 'windup' && f.t > FARMER.windup && groundClear && gap > FARMER.minThrowGap) {
     // he holds the throw until the ground ahead is clear, so a knife never lands on top of a jump
     f.mode = 'chase';
     f.t = 0;

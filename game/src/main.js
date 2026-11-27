@@ -7,7 +7,7 @@ import { createRun, updateRun, runResult } from './run.js';
 import { stageIndex } from './stages.js';
 import { drawRun } from './render.js';
 import { drawTitle, drawPause, drawEnd, hitButton, TITLE_BUTTONS, PAUSE_BUTTONS, END_BUTTONS } from './screens.js';
-import { unlockAudio, playSfx, setMusic, toggleMute } from './audio.js';
+import { unlockAudio, playSfx, setMusic, toggleMute, setAudioPaused } from './audio.js';
 import { loadBest, saveBest, recordRun } from './save.js';
 import { readShot, buildShotRun } from './shots.js';
 
@@ -32,6 +32,22 @@ const game = {
 };
 window.__gobble = game;
 
+// Browsers only let sound start inside a user gesture, so unlock on the very first key or click.
+window.addEventListener('pointerdown', unlockAudio, true);
+window.addEventListener('keydown', unlockAudio, true);
+
+function setScreen(screen) {
+  game.screen = screen;
+  setAudioPaused(screen === 'paused');
+}
+
+// Switching tabs or windows mid-run pauses it: Pepper is never caught while you look away.
+function autoPause() {
+  if (game.screen === 'play' && !game.frozen) { setScreen('paused'); announce('Paused.'); }
+}
+window.addEventListener('blur', autoPause);
+document.addEventListener('visibilitychange', () => { if (document.hidden) autoPause(); });
+
 function announce(message) {
   if (status) status.textContent = message;
 }
@@ -40,7 +56,7 @@ function startRun() {
   unlockAudio();
   game.seed += 1;
   game.run = createRun(game.seed);
-  game.screen = 'play';
+  setScreen('play');
   setMusic('chase', 0);
   playSfx('start');
   announce('Run! Farmer Baste is right behind you.');
@@ -52,13 +68,13 @@ function endRun() {
   game.best = best;
   saveBest(best);
   game.endInfo = { best, newRecord };
-  game.screen = 'end';
+  setScreen('end');
   setMusic('menu');
   announce(game.result.outcome === 'escaped' ? `Escaped! Score ${game.result.score}.` : `Caught! Score ${game.result.score}.`);
 }
 
 function goTitle() {
-  game.screen = 'title';
+  setScreen('title');
   game.run = null;
   setMusic('menu');
 }
@@ -88,7 +104,7 @@ function handleRunEvents(run) {
 }
 
 function update(dt) {
-  game.time += dt;
+  if (game.screen !== 'paused') game.time += dt; // animations hold still while paused
   if (input.wasPressed('mute')) toggleMute();
   const clicked = input.mouse.clicked ? input.mouse : null;
 
@@ -96,7 +112,7 @@ function update(dt) {
     if (input.wasPressed('confirm') || (clicked && hitButton(TITLE_BUTTONS, clicked) === 'start')) { playSfx('click'); startRun(); }
     else if (input.anyPressed()) { unlockAudio(); setMusic('menu'); }
   } else if (game.screen === 'play') {
-    if (input.wasPressed('pause')) { game.screen = 'paused'; playSfx('click'); return; }
+    if (input.wasPressed('pause')) { setScreen('paused'); playSfx('click'); return; }
     const controls = playControls();
     let acc = dt;
     while (acc > 1e-6) {
@@ -109,7 +125,7 @@ function update(dt) {
     if (game.run.state === 'over') endRun();
   } else if (game.screen === 'paused') {
     const id = clicked && hitButton(PAUSE_BUTTONS, clicked);
-    if (input.wasPressed('pause') || id === 'resume') game.screen = 'play';
+    if (input.wasPressed('pause') || id === 'resume') setScreen('play');
     else if (input.wasPressed('title') || id === 'title') goTitle();
   } else if (game.screen === 'end') {
     const id = clicked && hitButton(END_BUTTONS, clicked);
