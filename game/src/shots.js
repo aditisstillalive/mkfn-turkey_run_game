@@ -5,6 +5,7 @@
 import { createRun, updateRun } from './run.js';
 import { autopilotControls } from './autopilot.js';
 import { hazardHitboxes } from './hazards.js';
+import { GROUND_Y } from './config.js';
 
 const DT = 1 / 120;
 
@@ -27,13 +28,25 @@ const SCENES = {
   },
   barn: (seed) => {
     const run = createRun(seed, { startMeters: 690 });
-    play(run, 40, (r) => r.turkey.hidden && r.hiddenBeamTime > 0.05 && r.farmer.x > r.camX - 30 && r.fx.banners.length === 0);
+    play(run, 40, (r) => r.turkey.hidden && r.hiddenBeamTime > 0.3 && r.farmer.x > r.camX - 30 && r.fx.banners.length === 0);
     return run;
   },
   kitchen: (seed) => {
     const run = createRun(seed, { startMeters: 800 });
     play(run, 3);
     play(run, 40, (r) => r.stage.id === 'kitchen' && r.level.hazards.some((h) => h.type === 'oven' && hazardHitboxes(h).length && hazardHitboxes(h)[0].w > 90 && onScreen(r, h.x + h.w + 100) && h.x > r.turkey.x - 200) && r.farmer.x > r.camX - 20);
+    return run;
+  },
+  // Pepper in mid-leap over a blasting oven flame, the knife rack ahead, Farmer Baste behind.
+  leap: (seed) => {
+    const run = createRun(seed, { startMeters: 800 });
+    play(run, 40, (r) => {
+      const t = r.turkey;
+      if (r.stage.id !== 'kitchen') return false;
+      const oven = r.level.hazards.find((h) => h.type === 'oven' && hazardHitboxes(h).length && hazardHitboxes(h)[0].w > 100 && onScreen(r, h.x) && onScreen(r, h.x + h.w + 140));
+      const rack = r.level.hazards.find((h) => h.type === 'knifeRack' && onScreen(r, h.x) && onScreen(r, h.x + h.w));
+      return oven && rack && t.y < GROUND_Y - 90 && t.x > oven.x + oven.w - 20 && t.x < oven.x + oven.w + 150 && r.farmer.x > r.camX + 10;
+    });
     return run;
   },
   caught: (seed) => {

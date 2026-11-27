@@ -9,7 +9,7 @@
 farmhouse kitchen and the pantry to the freedom of the woods. Dodge his thrown carving knives, leap the
 oven flames, duck the barn lanterns, and hide when the lights go out.
 
-![Title screen](screenshots/1-title.jpg)
+![Pepper leaps an oven flame in the kitchen](screenshots/1-kitchen-leap.jpg)
 
 ## Play
 
@@ -45,7 +45,7 @@ Three feathers (lives), lucky feathers to find, corn to peck, close-shave and hi
 for every run and your best score kept in the browser. All art is drawn with canvas paths and all
 sound is synthesised with Web Audio in the game's own code.
 
-![Kitchen](screenshots/2-kitchen.jpg)
+![Title screen](screenshots/2-title.jpg)
 ![Barn search](screenshots/3-barn-search.jpg)
 ![Escaped](screenshots/4-escaped.jpg)
 
@@ -55,7 +55,7 @@ sound is synthesised with Web Audio in the game's own code.
 `hazards.js`, `level.js` (course spawner), `stages.js`, `config.js` (all tuning), `render.js`, `hud.js`,
 `screens.js`, `effects.js`, `audio.js`, `input.js`, `save.js`, `rng.js`, `art/` (turkey, farmer,
 scenery, props), plus `autopilot.js` and `shots.js`, which play real seeded runs to the moments in
-the screenshots (`?shot=title|kitchen|barn|caught|escaped&seed=N`).
+the screenshots (`?shot=title|leap|kitchen|barn|caught|escaped&seed=N`).
 
 `main.ts` hands the entry in: it copies `game/` and `screenshots/` to `/output` and writes
 `dossier.json` with the kit's unchanged `vendor/makefun-game.ts`.

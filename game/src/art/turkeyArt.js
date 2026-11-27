@@ -121,9 +121,10 @@ function drawHead(ctx, hx, hy, expression) {
   }
 }
 
-// opts: { phase, airborne, ducking, gliding, flicker, expression, scale }
+// opts: { phase, airborne, ducking, gliding, flicker, expression, scale, height }
+// `height` is how far she is above the floor: her shadow stays on the floor and shrinks as she rises.
 export function drawTurkey(ctx, x, y, opts = {}) {
-  const { phase = 0, airborne = false, ducking = false, gliding = false, flicker = false, expression = 'worried', scale = 1, squash = 0 } = opts;
+  const { phase = 0, airborne = false, ducking = false, gliding = false, flicker = false, expression = 'worried', scale = 1, squash = 0, height = 0 } = opts;
   if (flicker) return;
   ctx.save();
   ctx.translate(x, y);
@@ -132,10 +133,13 @@ export function drawTurkey(ctx, x, y, opts = {}) {
   ctx.translate(0, bob);
 
   // shadow
-  ctx.fillStyle = 'rgba(30,15,5,0.25)';
-  ctx.beginPath();
-  ctx.ellipse(0, -bob + 2, 30, 6, 0, 0, Math.PI * 2);
-  ctx.fill();
+  if (height >= 0) {
+    const fade = Math.max(0.35, 1 - height / 260);
+    ctx.fillStyle = `rgba(30,15,5,${0.25 * fade})`;
+    ctx.beginPath();
+    ctx.ellipse(0, -bob + 2 + height / scale, 30 * fade, 6 * fade, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   if (ducking) ctx.scale(1.15, 0.62);
   drawTailFan(ctx, gliding ? 1.15 : ducking ? 0.7 : 1, phase * 0.5);
@@ -182,6 +186,30 @@ export function drawTurkey(ctx, x, y, opts = {}) {
 }
 
 // Just the eyes, peeking out of a hiding place.
+// Hidden, Pepper's tail still gives her away: the tips of her fan poke up out of the hay (or out
+// of the cupboard's top), drawn before the hiding spot so its front covers their roots.
+export function drawHiddenTail(ctx, x, rootY, quiver = 0) {
+  ctx.save();
+  ctx.translate(x, rootY);
+  for (const ring of TAIL_RINGS.slice(0, 3)) {
+    for (let i = 0; i < 5; i++) {
+      const a = -Math.PI / 2 + (i - 2) * 0.32 + Math.sin(quiver * 40 + i) * 0.05 * (quiver > 0 ? 1 : 0);
+      ctx.save();
+      ctx.rotate(a);
+      ctx.fillStyle = ring.color;
+      ctx.beginPath();
+      ctx.ellipse(ring.r * 0.62, 0, ring.r * 0.5, 9, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = ring.band;
+      ctx.beginPath();
+      ctx.ellipse(ring.r * 0.98, 0, ring.r * 0.13, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+  ctx.restore();
+}
+
 export function drawPeekingEyes(ctx, x, y, blink) {
   ctx.fillStyle = '#fff';
   for (const dx of [-8, 8]) {

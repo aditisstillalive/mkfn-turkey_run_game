@@ -8,7 +8,7 @@ import { runMode } from './run.js';
 import { beamGeometry } from './farmer.js';
 import { drawScenery, drawDarkness } from './art/scenery.js';
 import { drawHazard, drawThrownKnife, drawCorn, drawPie, drawFeatherPickup, drawHideSpot, drawDoor, drawGate } from './art/props.js';
-import { drawTurkey, drawPeekingEyes } from './art/turkeyArt.js';
+import { drawTurkey, drawPeekingEyes, drawHiddenTail } from './art/turkeyArt.js';
 import { drawFarmer } from './art/farmerArt.js';
 import { drawParticles, drawFloaters } from './effects.js';
 import { drawHud } from './hud.js';
@@ -48,6 +48,11 @@ export function drawRun(ctx, run, time) {
 
   for (const d of run.level.doors) if (onScreen(d.x, 110)) drawDoor(ctx, d, camX);
   if (onScreen(run.level.gateX, 600)) drawGate(ctx, run.level.gateX, camX);
+  const hideSpot = t.hidden ? run.level.hides.find((h) => t.x >= h.x && t.x <= h.x + h.w) : null;
+  if (hideSpot) {
+    // tail tips quiver while the lantern is on her
+    drawHiddenTail(ctx, t.x - camX - 6, GROUND_Y - (hideSpot.type === 'cupboard' ? 112 : 78), run.hiddenBeamTime > 0 ? time : 0);
+  }
   for (const h of run.level.hides) {
     if (onScreen(h.x, h.w)) drawHideSpot(ctx, h, camX, searching && !t.hidden && t.x > h.x - 10 && t.x < h.x + h.w + 10);
   }
@@ -61,8 +66,7 @@ export function drawRun(ctx, run, time) {
   drawFarmer(ctx, f.x - camX, GROUND_Y, { phase: f.runPhase, mode: f.mode, t: f.t, alert: f.alert, glow: 0.8 + 0.2 * Math.sin(time * 10), facing: f.mode === 'search' && f.backTrack > 0 ? -1 : 1 });
 
   if (t.hidden) {
-    const spot = run.level.hides.find((h) => t.x >= h.x && t.x <= h.x + h.w);
-    drawPeekingEyes(ctx, t.x - camX, GROUND_Y - (spot?.type === 'cupboard' ? 74 : 56), Math.sin(time * 2.3) > 0.96);
+    drawPeekingEyes(ctx, t.x - camX, GROUND_Y - (hideSpot?.type === 'cupboard' ? 74 : 56), Math.sin(time * 2.3) > 0.96);
   } else if (!(run.outcome === 'caught' && run.endT > 0.2)) {
     drawTurkey(ctx, t.x - camX, t.y, {
       phase: t.runPhase,
@@ -72,6 +76,7 @@ export function drawRun(ctx, run, time) {
       flicker: t.invuln > 0 && Math.floor(time * 16) % 2 === 0,
       expression: turkeyExpression(run),
       squash: t.squash,
+      height: GROUND_Y - t.y,
     });
   }
   if (run.outcome === 'caught' && run.endT > 0.2) {
@@ -79,7 +84,7 @@ export function drawRun(ctx, run, time) {
     ctx.save();
     ctx.translate(f.x - camX + 40, GROUND_Y - 170);
     ctx.rotate(Math.PI + Math.sin(time * 6) * 0.15);
-    drawTurkey(ctx, 0, 0, { phase: time * 20, airborne: true, expression: 'scared' });
+    drawTurkey(ctx, 0, 0, { phase: time * 20, airborne: true, expression: 'scared', height: -1 });
     ctx.restore();
   }
 

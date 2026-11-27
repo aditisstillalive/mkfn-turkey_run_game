@@ -84,7 +84,7 @@ export function drawTitle(ctx, time, mouse, best) {
   ctx.fillRect(-80, -2, 60, 4);
   drawKnife(ctx, 56);
   ctx.restore();
-  drawTurkey(ctx, 780, GROUND_Y - 30 - hop, { phase: time * 14, airborne: true, scale: 1.9, expression: 'scared', gliding: hop > 30 });
+  drawTurkey(ctx, 780, GROUND_Y - 30 - hop, { phase: time * 14, airborne: true, scale: 1.9, expression: 'scared', gliding: hop > 30, height: 30 + hop });
 
   logo(ctx, 640, 150, time);
   ctx.font = `800 26px ${FONT}`;
@@ -195,7 +195,7 @@ function freedomScene(ctx, x, y, w, h, time) {
   ctx.fillStyle = '#e9c46a';
   ctx.beginPath(); ctx.ellipse(x + 150 + Math.sin(time * 2) * 4, y + h - 24, 14, 5, Math.sin(time * 3) * 0.3, 0, Math.PI * 2); ctx.fill();
   const hop = Math.abs(Math.sin(time * 4)) * 16;
-  drawTurkey(ctx, x + w * 0.58, y + h - 50 - hop, { phase: time * 6, expression: 'happy', scale: 1.7, gliding: true, airborne: hop > 2 });
+  drawTurkey(ctx, x + w * 0.58, y + h - 50 - hop, { phase: time * 6, expression: 'happy', scale: 1.7, gliding: true, airborne: hop > 2, height: hop });
   closeFrame(ctx, x, y, w, h);
 }
 

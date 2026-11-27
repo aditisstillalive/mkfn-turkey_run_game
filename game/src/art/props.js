@@ -149,17 +149,36 @@ function oven(ctx, x, h, time) {
     ctx.globalAlpha = 1;
   }
   if (phase === 'blast' && k < 0.92) {
+    // a roaring jet out of the door: a warm glow, then red, orange and yellow tongues of flame
+    // that lick up to the height of the hurtbox (44 px) and a white-hot core along the floor
     const len = h.flameLen * Math.min(1, k * 6);
     const fx = x + h.w - 10;
-    const g = ctx.createLinearGradient(fx, 0, fx + len, 0);
-    g.addColorStop(0, '#fff3a0'); g.addColorStop(0.4, '#ff9a2a'); g.addColorStop(1, 'rgba(229,59,44,0.2)');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.moveTo(fx, G - 52);
-    for (let s = 0; s <= 10; s++) ctx.lineTo(fx + (len * s) / 10, G - 50 - Math.sin(time * 30 + s * 1.7) * 9 + s * 2);
-    ctx.lineTo(fx + len, G);
-    ctx.lineTo(fx, G);
-    ctx.fill();
+    const glow = ctx.createRadialGradient(fx + len * 0.4, G - 20, 10, fx + len * 0.4, G - 20, len * 0.8 + 40);
+    glow.addColorStop(0, 'rgba(255,170,60,0.45)'); glow.addColorStop(1, 'rgba(255,120,40,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(fx - 40, G - 140, len + 120, 140);
+    const layers = [
+      { color: '#d9361f', top: 50, amp: 9 },
+      { color: '#ff8a1e', top: 38, amp: 7 },
+      { color: '#ffd23f', top: 24, amp: 5 },
+      { color: '#fff6c8', top: 11, amp: 3 },
+    ];
+    layers.forEach((layer, li) => {
+      ctx.fillStyle = layer.color;
+      ctx.beginPath();
+      ctx.moveTo(fx, G);
+      const tongues = 7;
+      for (let s = 0; s <= tongues * 2; s++) {
+        const u = s / (tongues * 2);
+        const taper = 1 - u * 0.55;
+        const peak = s % 2 === 0 ? 1 : 0.55;
+        const y = G - (layer.top * peak + Math.sin(time * 28 + s * 1.9 + li) * layer.amp) * taper;
+        ctx.lineTo(fx + len * u * (1 - li * 0.06), y);
+      }
+      ctx.lineTo(fx + len * (1 - li * 0.06), G);
+      ctx.closePath();
+      ctx.fill();
+    });
   }
   // a warning patch on the floor where the flame will reach
   if (phase !== 'cool') {
