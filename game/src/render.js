@@ -1,171 +1,102 @@
-// Drawing only: the world's state and the current screen in, pixels out. The 1280x720 playfield
-// is scaled to fit the window and centred, the margin filled with the backdrop colour. Flat
-// shapes (a turkey, carving knives, corn cobs), canvas text for the HUD and the panels. Text that holds a number is
-// rebuilt only when the number changes, so a frame allocates nothing.
-import { FIELD, FONT, LIVES, PALETTE } from './config.js';
-import { KIND_CORN } from './world.js';
+// Draws one frame of a run: the stage scenery (cross-fading between stages), the course props,
+// the farmer and Pepper, flying knives, the darkness and lantern beam of a search, effects,
+// screen shake and flashes, then the HUD on top.
 
-export const SCREEN_TITLE = 'title';
-export const SCREEN_PLAY = 'play';
-export const SCREEN_PAUSED = 'paused';
-export const SCREEN_OVER = 'over';
+import { VIEW, GROUND_Y, PX_PER_M } from './config.js';
+import { STAGES } from './stages.js';
+import { runMode } from './run.js';
+import { beamGeometry } from './farmer.js';
+import { drawScenery, drawDarkness } from './art/scenery.js';
+import { drawHazard, drawThrownKnife, drawCorn, drawPie, drawFeatherPickup, drawHideSpot, drawDoor, drawGate } from './art/props.js';
+import { drawTurkey, drawPeekingEyes } from './art/turkeyArt.js';
+import { drawFarmer } from './art/farmerArt.js';
+import { drawParticles, drawFloaters } from './effects.js';
+import { drawHud } from './hud.js';
 
-/** The panel's width; its height grows with its lines: room for the title, the lines and the prompt. */
-const PANEL = { width: 600, top: 134, line: 34, bottom: 70 };
-const LIFE_SIZE = 20;
-const LIFE_GAP = 8;
+const BLEND_M = 14; // metres over which one stage's scenery fades into the next
 
-function cachedLabel(prefix) {
-  let value = -1;
-  let text = '';
-  return function label(next) {
-    if (next !== value) {
-      value = next;
-      text = prefix + next;
-    }
-    return text;
-  };
+function drawBackdrop(ctx, run, time) {
+  const meters = run.turkey.x / PX_PER_M;
+  const i = STAGES.indexOf(run.stage);
+  drawScenery(ctx, run.stage.theme, run.camX, time);
+  const next = STAGES[i + 1];
+  if (next && next.theme !== run.stage.theme && meters > next.from - BLEND_M) {
+    ctx.globalAlpha = Math.min(1, (meters - (next.from - BLEND_M)) / BLEND_M);
+    drawScenery(ctx, next.theme, run.camX, time);
+    ctx.globalAlpha = 1;
+  }
 }
 
-export function createRenderer(canvas) {
-  const context = canvas.getContext('2d');
-  const view = { scale: 1, x: 0, y: 0 };
-  const scoreLabel = cachedLabel('Score ');
-  const levelLabel = cachedLabel('Level ');
-  const finalLabel = cachedLabel('Score ');
-  const bestLabel = cachedLabel('Best ');
+function turkeyExpression(run) {
+  const t = run.turkey;
+  if (run.outcome === 'escaped') return 'happy';
+  if (t.stun > 0 || run.outcome === 'caught') return 'scared';
+  if (t.sprinting) return 'determined';
+  return 'worried';
+}
 
-  function resize() {
-    const ratio = window.devicePixelRatio || 1;
-    const width = Math.round(window.innerWidth * ratio);
-    const height = Math.round(window.innerHeight * ratio);
-    canvas.width = width;
-    canvas.height = height;
-    view.scale = Math.min(width / FIELD.width, height / FIELD.height);
-    view.x = (width - FIELD.width * view.scale) / 2;
-    view.y = (height - FIELD.height * view.scale) / 2;
+export function drawRun(ctx, run, time) {
+  const fx = run.fx;
+  ctx.save();
+  if (fx.shake > 0) ctx.translate((Math.random() - 0.5) * fx.shake, (Math.random() - 0.5) * fx.shake);
+
+  drawBackdrop(ctx, run, time);
+  const camX = run.camX;
+  const onScreen = (x, w = 0) => x + w > camX - 300 && x < camX + VIEW.w + 300;
+  const t = run.turkey;
+  const searching = runMode(run) === 'search';
+
+  for (const d of run.level.doors) if (onScreen(d.x, 110)) drawDoor(ctx, d, camX);
+  if (onScreen(run.level.gateX, 600)) drawGate(ctx, run.level.gateX, camX);
+  for (const h of run.level.hides) {
+    if (onScreen(h.x, h.w)) drawHideSpot(ctx, h, camX, searching && !t.hidden && t.x > h.x - 10 && t.x < h.x + h.w + 10);
+  }
+  for (const h of run.level.hazards) if (onScreen(h.x, h.w + 200)) drawHazard(ctx, h, camX, time);
+  for (const c of run.level.corn) if (!c.taken && onScreen(c.x)) drawCorn(ctx, c, camX, time);
+  for (const p of run.level.pies) if (!p.taken && onScreen(p.x)) drawPie(ctx, p.x - camX, p.y + Math.sin(time * 3) * 5, 1);
+  for (const f of run.level.feathers) if (!f.taken && onScreen(f.x)) drawFeatherPickup(ctx, f, camX, time);
+  for (const p of run.droppedPies) if (!p.eaten) drawPie(ctx, p.x - camX, p.y, 1);
+
+  const f = run.farmer;
+  drawFarmer(ctx, f.x - camX, GROUND_Y, { phase: f.runPhase, mode: f.mode, t: f.t, alert: f.alert, glow: 0.8 + 0.2 * Math.sin(time * 10), facing: f.mode === 'search' && f.backTrack > 0 ? -1 : 1 });
+
+  if (t.hidden) {
+    const spot = run.level.hides.find((h) => t.x >= h.x && t.x <= h.x + h.w);
+    drawPeekingEyes(ctx, t.x - camX, GROUND_Y - (spot?.type === 'cupboard' ? 74 : 56), Math.sin(time * 2.3) > 0.96);
+  } else if (!(run.outcome === 'caught' && run.endT > 0.2)) {
+    drawTurkey(ctx, t.x - camX, t.y, {
+      phase: t.runPhase,
+      airborne: !t.onGround,
+      ducking: t.ducking,
+      gliding: t.gliding,
+      flicker: t.invuln > 0 && Math.floor(time * 16) % 2 === 0,
+      expression: turkeyExpression(run),
+      squash: t.squash,
+    });
+  }
+  if (run.outcome === 'caught' && run.endT > 0.2) {
+    // dangling by the feet from the farmer's fist
+    ctx.save();
+    ctx.translate(f.x - camX + 40, GROUND_Y - 170);
+    ctx.rotate(Math.PI + Math.sin(time * 6) * 0.15);
+    drawTurkey(ctx, 0, 0, { phase: time * 20, airborne: true, expression: 'scared' });
+    ctx.restore();
   }
 
-  const fonts = new Map();
-  function text(value, x, y, size, color, align) {
-    if (!fonts.has(size)) fonts.set(size, `${size}px ${FONT}`);
-    context.font = fonts.get(size);
-    context.fillStyle = color;
-    context.textAlign = align;
-    context.fillText(value, x, y);
+  for (const k of run.knives) drawThrownKnife(ctx, k, camX);
+
+  const darkStage = run.stage.mode === 'search';
+  if (darkStage) drawDarkness(ctx, searching ? beamGeometry(f) : null, camX, searching ? 1 : 0.6);
+
+  drawParticles(ctx, fx, camX);
+  drawFloaters(ctx, fx, camX);
+  ctx.restore();
+
+  if (fx.flash > 0) {
+    ctx.globalAlpha = fx.flash * 0.6;
+    ctx.fillStyle = fx.flashColor;
+    ctx.fillRect(0, 0, VIEW.w, VIEW.h);
+    ctx.globalAlpha = 1;
   }
-
-  /** A falling carving knife, point down: a flat blade over a brown handle, as wide as its box. */
-  function drawKnife(item) {
-    const handle = item.height * 0.35;
-    context.fillStyle = PALETTE.handle;
-    context.fillRect(item.x + item.width * 0.4, item.y, item.width * 0.2, handle);
-    context.fillStyle = PALETTE.knife;
-    context.beginPath();
-    context.moveTo(item.x, item.y + handle);
-    context.lineTo(item.x + item.width, item.y + handle);
-    context.lineTo(item.x + item.width / 2, item.y + item.height);
-    context.closePath();
-    context.fill();
-  }
-
-  /** The turkey: a flat brown body under a fan of three tail colours, a small head and a red wattle. */
-  function drawTurkey(player) {
-    const cx = player.x + player.width / 2;
-    const base = player.y + player.height;
-    for (let index = 0; index < 3; index += 1) {
-      context.fillStyle = PALETTE.tail[index];
-      context.beginPath();
-      context.arc(cx, base - 10, player.width * (0.62 - index * 0.12), Math.PI, 0);
-      context.fill();
-    }
-    context.fillStyle = PALETTE.player;
-    context.beginPath();
-    context.ellipse(cx, base - 12, player.width * 0.32, player.height * 0.75, 0, 0, Math.PI * 2);
-    context.fill();
-    context.fillStyle = PALETTE.head;
-    context.fillRect(cx - 7, base - 46, 14, 18);
-    context.fillStyle = PALETTE.wattle;
-    context.fillRect(cx + 2, base - 32, 6, 10);
-  }
-
-  function drawField(state) {
-    context.fillStyle = PALETTE.sky;
-    context.fillRect(0, 0, FIELD.width, FIELD.height);
-    context.fillStyle = PALETTE.ground;
-    context.fillRect(0, FIELD.groundY, FIELD.width, FIELD.height - FIELD.groundY);
-
-    const items = state.items;
-    for (let index = 0; index < items.length; index += 1) {
-      const item = items[index];
-      if (!item.active) continue;
-      if (item.kind === KIND_CORN) {
-        context.fillStyle = PALETTE.corn;
-        context.beginPath();
-        context.ellipse(item.x + item.width / 2, item.y + item.height / 2, item.width / 3, item.height / 2, 0, 0, Math.PI * 2);
-        context.fill();
-      } else {
-        drawKnife(item);
-      }
-    }
-
-    const player = state.player;
-    // Blink while invulnerable after a hit: hidden on every other tenth of a second.
-    if (player.invulnerable === 0 || Math.floor(player.invulnerable * 10) % 2 === 1) drawTurkey(player);
-  }
-
-  function drawHud(state) {
-    context.textBaseline = 'top';
-    text(scoreLabel(state.score), 24, 20, 28, PALETTE.text, 'left');
-    text(levelLabel(state.level), FIELD.width / 2, 20, 28, PALETTE.text, 'center');
-    const firstLife = FIELD.width - 24 - LIVES * (LIFE_SIZE + LIFE_GAP) + LIFE_GAP;
-    text('Lives', firstLife - 12, 20, 28, PALETTE.text, 'right');
-    for (let life = 0; life < LIVES; life += 1) {
-      context.fillStyle = life < state.lives ? PALETTE.player : PALETTE.ground;
-      context.fillRect(firstLife + life * (LIFE_SIZE + LIFE_GAP), 24, LIFE_SIZE, LIFE_SIZE);
-    }
-  }
-
-  function drawPanel(title, lines, prompt) {
-    const height = PANEL.top + lines.length * PANEL.line + PANEL.bottom;
-    const x = (FIELD.width - PANEL.width) / 2;
-    const y = (FIELD.height - height) / 2;
-    context.fillStyle = PALETTE.panel;
-    context.fillRect(x, y, PANEL.width, height);
-    context.textBaseline = 'alphabetic';
-    text(title, FIELD.width / 2, y + 78, 48, PALETTE.text, 'center');
-    for (let index = 0; index < lines.length; index += 1) {
-      text(lines[index], FIELD.width / 2, y + PANEL.top + index * PANEL.line, 22, PALETTE.muted, 'center');
-    }
-    text(prompt, FIELD.width / 2, y + height - 40, 24, PALETTE.corn, 'center');
-  }
-
-  const TITLE_LINES = ['Dodge the carving knives. Catch the corn.', 'Move with ← → or A D.  Pause with P.', ''];
-  const PAUSED_LINES = ['The knives will wait for you.'];
-  const OVER_LINES = ['', ''];
-
-  /** Paint one frame: the field, then the HUD or a panel for the screen the game is on. */
-  function draw(state, screen, best) {
-    context.setTransform(1, 0, 0, 1, 0, 0);
-    context.fillStyle = PALETTE.backdrop;
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.setTransform(view.scale, 0, 0, view.scale, view.x, view.y);
-    drawField(state);
-    if (screen === SCREEN_TITLE) {
-      TITLE_LINES[2] = bestLabel(best);
-      drawPanel('Turkey Dodge', TITLE_LINES, 'Press Space or click to start');
-      return;
-    }
-    drawHud(state);
-    if (screen === SCREEN_PAUSED) drawPanel('Paused', PAUSED_LINES, 'Press P to resume');
-    else if (screen === SCREEN_OVER) {
-      OVER_LINES[0] = finalLabel(state.score);
-      OVER_LINES[1] = bestLabel(best);
-      drawPanel('Caught for dinner', OVER_LINES, 'Press Space or click to play again');
-    }
-  }
-
-  resize();
-  window.addEventListener('resize', resize);
-  return { draw };
+  drawHud(ctx, run, time);
 }

@@ -1,134 +1,158 @@
-// Boot and the one loop: input is read every frame, the world advances in fixed 1/60 s steps
-// (several in a slow frame, none in a fast one), and the renderer paints what is there. The game
-// moves between four screens: title, play, paused and game over.
-//
-// ?seed=N fixes the falling pattern. ?shot=start|play|end (with &seed=N) stages that scene
-// instead of running the loop, paints it twice and sets window.__shotReady for a screenshot.
-import { BEST_KEY, LIVES, STEP } from './config.js';
-import { createRandom } from './random.js';
-import { createWorld, EVENT_HIT, EVENT_OVER } from './world.js';
-import { ACTION_CONFIRM, ACTION_PAUSE, createInput } from './input.js';
-import { createRenderer, SCREEN_OVER, SCREEN_PAUSED, SCREEN_PLAY, SCREEN_TITLE } from './render.js';
-import { stageShot } from './shots.js';
+// Gobble Getaway: boots the canvas and runs the game's screens (title, play, pause, end) on a
+// fixed-step loop, turning keyboard and mouse into Pepper's controls and run events into sound.
 
-/** The longest frame the loop catches up on; a longer stall (a hidden tab) is dropped, not replayed. */
-const MAX_FRAME = 0.25;
-
-const params = new URLSearchParams(window.location.search);
-const shot = params.get('shot');
-const seedParam = Number.parseInt(params.get('seed') ?? '', 10);
-const seed = Number.isInteger(seedParam) ? seedParam : Math.floor(Math.random() * 4294967296);
+import { VIEW } from './config.js';
+import { createInput } from './input.js';
+import { createRun, updateRun, runResult } from './run.js';
+import { stageIndex } from './stages.js';
+import { drawRun } from './render.js';
+import { drawTitle, drawPause, drawEnd, hitButton, TITLE_BUTTONS, PAUSE_BUTTONS, END_BUTTONS } from './screens.js';
+import { unlockAudio, playSfx, setMusic, toggleMute } from './audio.js';
+import { loadBest, saveBest, recordRun } from './save.js';
+import { readShot, buildShotRun } from './shots.js';
 
 const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
 const status = document.getElementById('status');
-const world = createWorld(createRandom(seed));
-const renderer = createRenderer(canvas);
+canvas.width = VIEW.w;
+canvas.height = VIEW.h;
 
-function readBest() {
-  try {
-    return Number.parseInt(window.localStorage.getItem(BEST_KEY) ?? '0', 10) || 0;
-  } catch {
-    return 0;
+const input = createInput(canvas);
+const STEP = 1 / 120;
+
+const game = {
+  screen: 'title',      // title | play | paused | end
+  run: null,
+  best: loadBest(),
+  endInfo: null,
+  result: null,
+  time: 0,
+  seed: (Date.now() % 100000) | 0,
+  frozen: false,
+};
+window.__gobble = game;
+
+function announce(message) {
+  if (status) status.textContent = message;
+}
+
+function startRun() {
+  unlockAudio();
+  game.seed += 1;
+  game.run = createRun(game.seed);
+  game.screen = 'play';
+  setMusic('chase', 0);
+  playSfx('start');
+  announce('Run! Farmer Baste is right behind you.');
+}
+
+function endRun() {
+  game.result = runResult(game.run);
+  const { best, newRecord } = recordRun(game.best, game.result);
+  game.best = best;
+  saveBest(best);
+  game.endInfo = { best, newRecord };
+  game.screen = 'end';
+  setMusic('menu');
+  announce(game.result.outcome === 'escaped' ? `Escaped! Score ${game.result.score}.` : `Caught! Score ${game.result.score}.`);
+}
+
+function goTitle() {
+  game.screen = 'title';
+  game.run = null;
+  setMusic('menu');
+}
+
+function playControls() {
+  return {
+    left: input.isHeld('left'),
+    right: input.isHeld('right'),
+    down: input.isHeld('down'),
+    jump: input.isHeld('jump'),
+    jumpPressed: input.wasPressed('jump'),
+    downPressed: input.wasPressed('down'),
+    piePressed: input.wasPressed('pie') || input.mouse.clicked,
+  };
+}
+
+function handleRunEvents(run) {
+  for (const e of run.events) {
+    playSfx(e.name);
+    if (e.name === 'stage' || e.name === 'slip' || e.name === 'spotted') {
+      setMusic(run.stage.mode === 'search' && !run.spotted ? 'search' : 'chase', stageIndex(run.stage));
+    }
+    if (e.name === 'lightsOut') { setMusic('search'); announce('The lights are out. Hide when the lantern swings your way.'); }
+    if (e.name === 'spotted') announce('Spotted! Run!');
+    if (e.name === 'hit') announce(`Hit! ${run.turkey.lives} feathers left.`);
   }
 }
 
-function saveBest(value) {
-  try {
-    window.localStorage.setItem(BEST_KEY, String(value));
-  } catch {
-    // Storage can be off (private windows): the best score then lasts this visit only.
+function update(dt) {
+  game.time += dt;
+  if (input.wasPressed('mute')) toggleMute();
+  const clicked = input.mouse.clicked ? input.mouse : null;
+
+  if (game.screen === 'title') {
+    if (input.wasPressed('confirm') || (clicked && hitButton(TITLE_BUTTONS, clicked) === 'start')) { playSfx('click'); startRun(); }
+    else if (input.anyPressed()) { unlockAudio(); setMusic('menu'); }
+  } else if (game.screen === 'play') {
+    if (input.wasPressed('pause')) { game.screen = 'paused'; playSfx('click'); return; }
+    const controls = playControls();
+    let acc = dt;
+    while (acc > 1e-6) {
+      const h = Math.min(STEP, acc);
+      updateRun(game.run, h, controls);
+      handleRunEvents(game.run);
+      controls.jumpPressed = controls.downPressed = controls.piePressed = false;
+      acc -= h;
+    }
+    if (game.run.state === 'over') endRun();
+  } else if (game.screen === 'paused') {
+    const id = clicked && hitButton(PAUSE_BUTTONS, clicked);
+    if (input.wasPressed('pause') || id === 'resume') game.screen = 'play';
+    else if (input.wasPressed('title') || id === 'title') goTitle();
+  } else if (game.screen === 'end') {
+    const id = clicked && hitButton(END_BUTTONS, clicked);
+    if (input.wasPressed('restart') || input.wasPressed('confirm') || id === 'again') { playSfx('click'); startRun(); }
+    else if (input.wasPressed('title') || id === 'title') goTitle();
   }
 }
 
-function runShot(name) {
-  const scene = stageShot(name, world);
-  let painted = 0;
-  function paint() {
-    renderer.draw(world.state, scene.screen, scene.best);
-    painted += 1;
-    if (painted < 2) requestAnimationFrame(paint);
-    else window.__shotReady = true;
+function draw() {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, VIEW.w, VIEW.h);
+  if (game.screen === 'title') drawTitle(ctx, game.time, input.mouse, game.best);
+  else {
+    drawRun(ctx, game.run, game.time);
+    if (game.screen === 'paused') drawPause(ctx, game.time, input.mouse);
+    if (game.screen === 'end') drawEnd(ctx, game.time, input.mouse, game.result, game.endInfo);
   }
-  requestAnimationFrame(paint);
 }
 
-function runGame() {
-  const input = createInput(canvas);
-  let screen = SCREEN_TITLE;
-  let best = readBest();
-  let accumulator = 0;
-  let last = performance.now();
-
-  // Screen readers (and anyone watching the page's text) hear the screen changes and each hit.
-  function announce(message) {
-    status.textContent = message;
-  }
-
-  function startGame() {
-    world.reset();
-    accumulator = 0;
-    screen = SCREEN_PLAY;
-    announce(`Playing. ${LIVES} lives.`);
-  }
-
-  function endGame() {
-    screen = SCREEN_OVER;
-    if (world.state.score > best) {
-      best = world.state.score;
-      saveBest(best);
-    }
-    announce(`Game over. Score ${world.state.score}. Best ${best}.`);
-  }
-
-  function handleActions() {
-    const actions = input.takeActions();
-    if (actions & ACTION_CONFIRM && (screen === SCREEN_TITLE || screen === SCREEN_OVER)) startGame();
-    else if (actions & ACTION_PAUSE && screen === SCREEN_PLAY) {
-      screen = SCREEN_PAUSED;
-      announce('Paused.');
-    } else if (actions & (ACTION_PAUSE | ACTION_CONFIRM) && screen === SCREEN_PAUSED) {
-      screen = SCREEN_PLAY;
-      announce('Playing.');
-    }
-  }
-
-  function step() {
-    if (screen === SCREEN_TITLE) {
-      world.step(STEP, 0, true);
-      return;
-    }
-    const events = world.step(STEP, input.direction(), false);
-    if (events & EVENT_OVER) endGame();
-    else if (events & EVENT_HIT) announce(world.state.lives === 1 ? 'Hit. 1 life left.' : `Hit. ${world.state.lives} lives left.`);
-  }
-
-  function frame(now) {
-    requestAnimationFrame(frame);
-    accumulator += Math.min((now - last) / 1000, MAX_FRAME);
-    last = now;
-    handleActions();
-    if (screen === SCREEN_TITLE || screen === SCREEN_PLAY) {
-      while (accumulator >= STEP && (screen === SCREEN_TITLE || screen === SCREEN_PLAY)) {
-        step();
-        accumulator -= STEP;
-      }
-    } else {
-      accumulator = 0;
-    }
-    renderer.draw(world.state, screen, best);
-  }
-
-  // Leaving the tab pauses a running game rather than letting knives fall unseen.
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden && screen === SCREEN_PLAY) {
-      screen = SCREEN_PAUSED;
-      announce('Paused.');
-    }
-  });
-
-  announce('Turkey Dodge. Press Space or click to start.');
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  if (!game.frozen) update(dt);
+  input.endFrame();
+  draw();
   requestAnimationFrame(frame);
 }
 
-if (shot) runShot(shot);
-else runGame();
+// Screenshot scenes: ?shot=title|farm|barn|kitchen|caught|escaped plays the real game to a moment and holds it.
+const shot = readShot();
+if (shot) {
+  game.frozen = true;
+  game.time = 1.25;
+  if (shot.name !== 'title') {
+    game.run = buildShotRun(shot);
+    game.time = game.run.time;
+    if (game.run.state === 'over') {
+      game.result = runResult(game.run);
+      game.endInfo = recordRun({ score: 0, meters: 0, escapes: 0 }, game.result);
+      game.screen = 'end';
+    } else game.screen = 'play';
+  }
+  window.__shotReady = true;
+}
+requestAnimationFrame(frame);

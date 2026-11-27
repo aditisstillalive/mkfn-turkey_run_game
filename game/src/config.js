@@ -1,65 +1,66 @@
-// Every tuning number and colour in one place. The playfield is a fixed 1280x720 logical area;
-// the renderer scales it to the window, so no rule below depends on the screen size.
+// Gobble Getaway: every tuning number in one place, so a narrow escape can be made fair by
+// changing a value here rather than hunting through the code.
 
-export const FIELD = { width: 1280, height: 720, groundY: 664 };
+export const VIEW = { w: 1280, h: 720 };
+export const GROUND_Y = 604;
+export const PX_PER_M = 32;
 
-/** The simulation's fixed step, in seconds: 60 updates a second whatever the display's rate. */
-export const STEP = 1 / 60;
-
-export const PLAYER = {
-  width: 72,
-  height: 24,
-  speed: 560,
-  invulnerable: 1.5,
+export const TURKEY = {
+  screenX: 500,         // where the camera keeps Pepper on screen
+  w: 58,
+  h: 74,
+  duckH: 40,
+  baseSpeed: 330,       // px/s at a plain run
+  sprintMul: 1.42,
+  slowMul: 0.62,
+  sneakSpeed: 235,      // walking speed while the farmer searches
+  jumpV: 930,
+  flapV: 640,           // the one mid-air flap
+  gravity: 2700,
+  glideGravity: 980,    // holding jump while falling
+  lives: 3,
+  invuln: 1.4,
+  stun: 0.35,
+  staminaDrain: 0.36,   // per second of sprint
+  staminaRegen: 0.2,
+  coyote: 0.09,         // a jump pressed just after leaving the ground still counts
+  jumpBuffer: 0.12,     // a jump pressed just before landing still counts
 };
 
-export const LIVES = 3;
-
-export const KNIFE = {
-  minWidth: 40,
-  maxWidth: 110,
-  height: 36,
-  speed: 240,
-  speedPerLevel: 30,
-  speedJitter: 90,
-  interval: 0.55,
-  intervalScale: 0.88,
-  minInterval: 0.14,
-  dodgePoints: 1,
+export const FARMER = {
+  catchGap: 52,         // px between farmer and turkey that means caught
+  startGap: 430,
+  maxGap: 960,
+  hitLunge: 100,        // how much closer he gets when Pepper stumbles
+  pieStop: 1.7,         // seconds he stops to eat a dropped pie
+  windup: 0.75,         // seconds of warning before a thrown knife
+  knifeSpeed: 760,      // slowest a knife flies
+  knifeFlight: 0.85,    // seconds from throw to reaching Pepper
+  searchWalk: 150,
+  searchHurry: 290,
+  beamLength: 760,
+  beamHalfAngle: 0.15,
+  spottedGap: 300,
 };
 
-export const CORN = {
-  size: 24,
-  speed: 190,
-  speedPerLevel: 14,
-  interval: 1.4,
-  intervalJitter: 0.8,
-  points: 10,
+export const SCORE = {
+  perMeter: 1,
+  corn: 10,
+  closeShave: 40,
+  phew: 60,
+  slipAway: 300,
+  escape: 1500,
+  perFeather: 250,
 };
 
-/** Seconds of play per level, and the last level: speeds and spawn rates stop growing there. */
-export const LEVEL = { seconds: 12, max: 12 };
-
-/** How many falling things can exist at once; the pool is allocated once, at boot. */
-export const POOL_SIZE = 64;
-
-export const PALETTE = {
-  backdrop: '#11141b',
-  sky: '#1b1f2a',
-  ground: '#2a3040',
-  player: '#8a5230',
-  tail: ['#a0522d', '#d2691e', '#e8a33c'],
-  head: '#c9d2e3',
-  wattle: '#e5534b',
-  knife: '#c9ced6',
-  handle: '#7a4a26',
-  corn: '#f2c94c',
-  panel: '#252b38',
-  text: '#eef1f5',
-  muted: '#8b93a3',
+export const COLORS = {
+  ink: '#2a1a12',
+  cream: '#fff3dc',
+  pumpkin: '#e8762b',
+  rust: '#b5481f',
+  gold: '#f2b632',
+  cranberry: '#9c1f2e',
+  moss: '#5f7a33',
+  sky: '#f7c98b',
+  danger: '#e53b2c',
 };
-
-export const FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif';
-
-/** Where the best score is kept between visits (this browser only). */
-export const BEST_KEY = 'turkey-dodge.best';
