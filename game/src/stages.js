@@ -16,7 +16,7 @@ export const STAGES = [
   },
   {
     id: 'loft', name: 'Lights Out in the Barn', from: 700, to: 780, mode: 'search', theme: 'barnDark',
-    hide: 'haypile', tip: 'He lost you! Hide in the hay (DOWN) when his lantern sweeps.',
+    hide: 'haypile', tip: 'He lost you! Hold RIGHT to sneak, DOWN to hide in the hay.',
   },
   {
     id: 'kitchen', name: 'The Farmhouse Kitchen', from: 780, to: 1180, mode: 'chase', theme: 'kitchen',
@@ -26,7 +26,7 @@ export const STAGES = [
   },
   {
     id: 'pantry', name: 'Hide in the Pantry', from: 1180, to: 1260, mode: 'search', theme: 'kitchenDark',
-    hide: 'cupboard', tip: 'Duck into a cupboard before the flashlight finds you.',
+    hide: 'cupboard', tip: 'Sneak (RIGHT) and duck into a cupboard (DOWN) before his lantern finds you.',
   },
   {
     id: 'dash', name: 'Dash for the Woods', from: 1260, to: 1500, mode: 'chase', theme: 'dusk',

@@ -128,9 +128,12 @@ export const PAUSE_BUTTONS = [
 ];
 
 export function drawPause(ctx, time, mouse) {
-  ctx.fillStyle = 'rgba(20,12,8,0.6)';
+  ctx.fillStyle = 'rgba(20,12,8,0.78)';
   ctx.fillRect(0, 0, VIEW.w, VIEW.h);
-  text(ctx, 'PAUSED', 640, 280, 72, COLORS.gold, 'center', 900);
+  ctx.fillStyle = '#2a1a12';
+  ctx.beginPath(); ctx.roundRect(430, 170, 420, 400, 14); ctx.fill();
+  panel(ctx, 430, 170, 420, 400);
+  text(ctx, 'PAUSED', 640, 270, 72, COLORS.gold, 'center', 900);
   for (const b of PAUSE_BUTTONS) button(ctx, b, mouse, time);
 }
 

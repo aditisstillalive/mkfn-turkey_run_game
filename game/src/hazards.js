@@ -77,7 +77,6 @@ export function updateHazard(h, dt, turkeyX, events) {
 // The boxes that hurt Pepper this frame, in world coordinates.
 export function hazardHitboxes(h) {
   switch (h.type) {
-    case 'surface':
     case 'mud':
     case 'gravy':
       return [];

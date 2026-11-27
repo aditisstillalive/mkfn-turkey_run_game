@@ -33,7 +33,7 @@ const SCENES = {
   kitchen: (seed) => {
     const run = createRun(seed, { startMeters: 800 });
     play(run, 3);
-    play(run, 40, (r) => r.level.hazards.some((h) => h.type === 'oven' && hazardHitboxes(h).length && hazardHitboxes(h)[0].w > 120 && onScreen(r, h.x + h.w + 150) && h.x > r.turkey.x - 60 && h.x < r.turkey.x + 420) && r.farmer.x > r.camX + 20);
+    play(run, 40, (r) => r.stage.id === 'kitchen' && r.level.hazards.some((h) => h.type === 'oven' && hazardHitboxes(h).length && hazardHitboxes(h)[0].w > 90 && onScreen(r, h.x + h.w + 100) && h.x > r.turkey.x - 200) && r.farmer.x > r.camX - 20);
     return run;
   },
   caught: (seed) => {

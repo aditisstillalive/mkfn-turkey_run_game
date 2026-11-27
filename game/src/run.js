@@ -15,7 +15,7 @@ export function createRun(seed, { startMeters = 0 } = {}) {
   const turkey = createTurkey();
   turkey.x = startMeters * PX_PER_M + 200;
   const level = createLevel(rng);
-  level.nextX = turkey.x + 700;
+  level.nextX = turkey.x + 1350; // a few seconds to read the first tip
   const run = {
     seed, rng, level, turkey,
     farmer: createFarmer(turkey.x),

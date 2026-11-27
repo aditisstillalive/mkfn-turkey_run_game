@@ -61,7 +61,7 @@ export function updateTurkey(t, dt, controls, mode) {
   t.sprinting = wantsSprint && mode === 'chase';
   let target;
   if (mode === 'search') {
-    target = controls.right ? TURKEY.sneakSpeed * (controls.sprint ? 1.35 : 1) : controls.left ? -TURKEY.sneakSpeed * 0.55 : 0;
+    target = controls.right ? TURKEY.sneakSpeed : controls.left ? -TURKEY.sneakSpeed * 0.55 : 0;
   } else {
     target = TURKEY.baseSpeed * (t.sprinting ? TURKEY.sprintMul : controls.left ? TURKEY.slowMul : 1);
   }
