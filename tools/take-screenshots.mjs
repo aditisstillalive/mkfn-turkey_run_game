@@ -1,11 +1,11 @@
 // Retakes the screenshots listed in shots.json: serves the repo on a local port, opens each
 // scene of tools/shot.html in Chrome through playwright-core, and saves 1280x720 JPEGs into
-// screenshots/. Usage: node tools/take-screenshots.mjs [path to chrome]
-// (set PLAYWRIGHT to playwright-core's entry file if it is not installed next to the repo)
+// screenshots/. Usage: node tools/take-screenshots.mjs [--chrome /path/to/chrome]
 import { createServer } from 'node:http';
 import { readFileSync, createReadStream, statSync } from 'node:fs';
 import { extname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { chromium } from 'playwright-core';
 
 const repo = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json' };
@@ -18,9 +18,11 @@ const server = createServer((req, res) => {
 await new Promise((ok) => server.once('listening', ok));
 const base = `http://127.0.0.1:${server.address().port}`;
 
-const { chromium } = await import(process.env.PLAYWRIGHT ?? 'playwright-core');
 const list = JSON.parse(readFileSync(join(repo, 'shots.json'), 'utf8'));
-const browser = await chromium.launch({ executablePath: process.argv[2] ?? '/usr/bin/google-chrome' });
+const args = process.argv.slice(2);
+const chromeAt = args.indexOf('--chrome');
+const chrome = chromeAt === -1 ? '/usr/bin/google-chrome' : args[chromeAt + 1];
+const browser = await chromium.launch({ executablePath: chrome });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
