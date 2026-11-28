@@ -2,9 +2,9 @@
 // knives, waits out oven blasts, and hides when the lantern beam swings close. The screenshot
 // scenes use it to play real runs of the game, and it doubles as a smoke test of the course.
 
-import { GROUND_Y } from './config.js';
-import { runMode } from './run.js';
-import { beamGeometry } from './farmer.js';
+import { GROUND_Y } from '../game/src/config.js';
+import { runMode } from '../game/src/run.js';
+import { beamGeometry } from '../game/src/farmer.js';
 
 export function autopilotControls(run) {
   const t = run.turkey;

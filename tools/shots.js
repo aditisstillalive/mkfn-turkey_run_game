@@ -2,10 +2,10 @@
 // autopilot drives Pepper with a fixed time step) until a moment worth showing, then freezes
 // there. Nothing is painted on top: what you see is the game's own frame.
 
-import { createRun, updateRun } from './run.js';
+import { createRun, updateRun } from '../game/src/run.js';
 import { autopilotControls } from './autopilot.js';
-import { hazardHitboxes } from './hazards.js';
-import { GROUND_Y } from './config.js';
+import { hazardHitboxes } from '../game/src/hazards.js';
+import { GROUND_Y } from '../game/src/config.js';
 
 const DT = 1 / 120;
 

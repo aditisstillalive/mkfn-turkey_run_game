@@ -3,7 +3,7 @@
 // racks, mud and gravy, corn, pies, lucky feathers, hiding spots, doors and the woods gate.
 
 import { GROUND_Y } from '../config.js';
-import { ovenPhase } from '../hazards.js';
+import { ovenPhase, RACK_Y } from '../hazards.js';
 import { drawKnife } from './farmerArt.js';
 
 const G = GROUND_Y;
@@ -188,10 +188,11 @@ function oven(ctx, x, h, time) {
 }
 
 function knifeRack(ctx, x, h) {
+  // the rack hangs on two chains below the HUD; its knives hang from it point-down
   ctx.fillStyle = '#5a3a22';
-  ctx.fillRect(x, 110, h.w, 22);
+  ctx.fillRect(x, RACK_Y, h.w, 22);
   ctx.strokeStyle = '#3b2416'; ctx.lineWidth = 4;
-  ctx.beginPath(); ctx.moveTo(x + 20, 0); ctx.lineTo(x + 20, 110); ctx.moveTo(x + h.w - 20, 0); ctx.lineTo(x + h.w - 20, 110); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x + 20, 0); ctx.lineTo(x + 20, RACK_Y); ctx.moveTo(x + h.w - 20, 0); ctx.lineTo(x + h.w - 20, RACK_Y); ctx.stroke();
   for (const k of h.knives) {
     const kx = x + k.dx;
     if (k.state === 'shake' && k.t > 0) {
@@ -200,7 +201,7 @@ function knifeRack(ctx, x, h) {
       ctx.beginPath(); ctx.ellipse(kx, G, 22, 6, 0, 0, Math.PI * 2); ctx.fill();
     }
     const jiggle = k.state === 'shake' && k.t > 0 ? Math.sin(k.t * 60) * 3 : 0;
-    const y = k.state === 'hang' || k.state === 'shake' ? 140 : k.y - 70;
+    const y = k.y - 70;
     ctx.save();
     ctx.translate(kx + jiggle, k.state === 'stuck' ? G - 44 : y);
     ctx.rotate(Math.PI / 2);

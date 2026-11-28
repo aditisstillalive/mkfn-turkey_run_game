@@ -9,7 +9,6 @@ import { drawRun } from './render.js';
 import { drawTitle, drawPause, drawEnd, hitButton, TITLE_BUTTONS, PAUSE_BUTTONS, END_BUTTONS } from './screens.js';
 import { unlockAudio, playSfx, setMusic, toggleMute, setAudioPaused } from './audio.js';
 import { loadBest, saveBest, recordRun } from './save.js';
-import { readShot, buildShotRun } from './shots.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -28,9 +27,7 @@ const game = {
   result: null,
   time: 0,
   seed: (Date.now() % 100000) | 0,
-  frozen: false,
 };
-window.__gobble = game;
 
 // Browsers only let sound start inside a user gesture, so unlock on the very first key or click.
 window.addEventListener('pointerdown', unlockAudio, true);
@@ -43,7 +40,7 @@ function setScreen(screen) {
 
 // Switching tabs or windows mid-run pauses it: Pepper is never caught while you look away.
 function autoPause() {
-  if (game.screen === 'play' && !game.frozen) { setScreen('paused'); announce('Paused.'); }
+  if (game.screen === 'play') { setScreen('paused'); announce('Paused.'); }
 }
 window.addEventListener('blur', autoPause);
 document.addEventListener('visibilitychange', () => { if (document.hidden) autoPause(); });
@@ -149,26 +146,10 @@ let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
-  if (!game.frozen) update(dt);
+  update(dt);
   input.endFrame();
   draw();
   requestAnimationFrame(frame);
 }
 
-// Screenshot scenes: ?shot=title|farm|barn|kitchen|caught|escaped plays the real game to a moment and holds it.
-const shot = readShot();
-if (shot) {
-  game.frozen = true;
-  game.time = 1.25;
-  if (shot.name !== 'title') {
-    game.run = buildShotRun(shot);
-    game.time = game.run.time;
-    if (game.run.state === 'over') {
-      game.result = runResult(game.run);
-      game.endInfo = recordRun({ score: 0, meters: 0, escapes: 0 }, game.result);
-      game.screen = 'end';
-    } else game.screen = 'play';
-  }
-  window.__shotReady = true;
-}
 requestAnimationFrame(frame);

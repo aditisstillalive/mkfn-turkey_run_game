@@ -98,11 +98,16 @@ export function drawHud(ctx, run, time) {
   if (run.farmer.mode === 'windup') {
     const y = run.farmer.lane === 'high' ? GROUND_Y - 62 : GROUND_Y - 20;
     const blink = Math.sin(time * 26) > 0;
+    // a dark tag behind the words keeps the cue readable over ovens, crates and wallpaper
+    ctx.fillStyle = 'rgba(26,14,8,0.82)';
+    ctx.beginPath(); ctx.roundRect(200, y - 20, 132, 40, 10); ctx.fill();
+    ctx.strokeStyle = '#ffd36b'; ctx.lineWidth = 2;
+    ctx.stroke();
     if (blink) {
       ctx.fillStyle = '#ffd36b';
       ctx.fillRect(0, y - 3, 200, 6);
-      text(ctx, run.farmer.lane === 'high' ? '▼ DUCK!' : '▲ JUMP!', 210, y + 8, 24, '#ffd36b', 'left', 900);
     }
+    text(ctx, run.farmer.lane === 'high' ? '▼ DUCK!' : '▲ JUMP!', 212, y + 8, 24, blink ? '#ffd36b' : '#fff3dc', 'left', 900);
   }
   if (danger > 0.55) {
     const g = ctx.createRadialGradient(VIEW.w / 2, VIEW.h / 2, VIEW.h * 0.4, VIEW.w / 2, VIEW.h / 2, VIEW.w * 0.7);

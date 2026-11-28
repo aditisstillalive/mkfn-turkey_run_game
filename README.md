@@ -54,8 +54,12 @@ sound is synthesised with Web Audio in the game's own code.
 `game/src/`: `main.js` (screens and loop), `run.js` (one escape attempt), `turkey.js`, `farmer.js`,
 `hazards.js`, `level.js` (course spawner), `stages.js`, `config.js` (all tuning), `render.js`, `hud.js`,
 `screens.js`, `effects.js`, `audio.js`, `input.js`, `save.js`, `rng.js`, `art/` (turkey, farmer,
-scenery, props), plus `autopilot.js` and `shots.js`, which play real seeded runs to the moments in
-the screenshots (`?shot=title|leap|kitchen|barn|caught|escaped&seed=N`).
+scenery, props).
+
+`tools/` (not shipped with the game): `autopilot.js` and `shots.js` play real seeded runs to the
+moments in the screenshots, `shot.html` draws a scene with the game's own rendering code, and
+`node tools/take-screenshots.mjs` retakes every shot listed in `shots.json` (needs playwright-core
+and Chrome).
 
 `main.ts` hands the entry in: it copies `game/` and `screenshots/` to `/output` and writes
 `dossier.json` with the kit's unchanged `vendor/makefun-game.ts`.

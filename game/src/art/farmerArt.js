@@ -14,7 +14,11 @@ function plaid(ctx, x, y, w, h) {
 function drawKnife(ctx, len = 46) {
   ctx.fillStyle = '#3b2416';
   ctx.fillRect(-14, -4, 16, 8);
-  ctx.fillStyle = '#dfe6ee';
+  // steel-grey blade with a dark outline, so it reads against pale wallpaper and dark barns alike
+  ctx.fillStyle = '#aebbc8';
+  ctx.strokeStyle = '#1e1410';
+  ctx.lineWidth = 2.5;
+  ctx.lineJoin = 'round';
   ctx.beginPath();
   ctx.moveTo(2, -5);
   ctx.lineTo(2 + len, -1);
@@ -22,7 +26,8 @@ function drawKnife(ctx, len = 46) {
   ctx.lineTo(2, 5);
   ctx.closePath();
   ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,0.8)';
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
   ctx.fillRect(6, -3, len - 14, 2);
 }
 

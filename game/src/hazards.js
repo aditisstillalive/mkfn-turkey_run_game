@@ -4,6 +4,7 @@
 
 import { GROUND_Y, FARMER } from './config.js';
 
+export const RACK_Y = 150;    // top of a knife rack's bar, clear of the HUD panels
 export const ROLL_RANGE = 760; // rolling hazards start rolling when Pepper is this close
 
 const SPECS = {
@@ -38,7 +39,7 @@ export function makeHazard(type, x, rng) {
     h.flameLen = 160;
   }
   if (type === 'knifeRack') {
-    h.knives = [0, 1, 2].map((i) => ({ dx: 60 + i * 55, state: 'hang', t: 0, y: 140 }));
+    h.knives = [0, 1, 2].map((i) => ({ dx: 60 + i * 55, state: 'hang', t: 0, y: RACK_Y + 22 + 84 }));
     h.armed = false;
   }
   return h;
